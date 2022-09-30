@@ -3,7 +3,13 @@
 #include <task.h>
 #include <timers.h>
 
-#if defined STM32F1
+#if defined STM32G0
+    #include <stm32g0xx_hal.h>
+    // STM32G070 green led - PA5
+    #define LED_PORT                GPIOA
+    #define LED_PIN                 GPIO_PIN_5
+    #define LED_PORT_CLK_ENABLE     __HAL_RCC_GPIOA_CLK_ENABLE
+#elif defined STM32F1
     #include <stm32f1xx_hal.h>
 
     // STM32VL-Discovery green led - PC9

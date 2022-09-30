@@ -33,13 +33,14 @@ set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 # Can be used to print out all devices for the H7 or/and the F4 family
 # stm32_print_devices_by_family(FAMILY H7)
 # stm32_print_devices_by_family(FAMILY F4)
-set(SUPPORTED_BOARDS F100RB F407VG H743ZI L552ZE)
+set(SUPPORTED_BOARDS G070RB F100RB F407VG H743ZI L552ZE)
+option(FREERTOS_G070RB_EXAMPLE "Compile FreeRTOS example for the G070RB board" OFF)
 option(FREERTOS_F100RB_EXAMPLE "Compile FreeRTOS example for the F100RB board" OFF)
 option(FREERTOS_F407VG_EXAMPLE "Compile FreeRTOS example for the F407VG board" OFF)
 option(FREERTOS_H743ZI_EXAMPLE "Compile FreeRTOS example for the H743ZI board" OFF)
 option(FREERTOS_L552ZE_EXAMPLE "Compile FreeRTOS example for the L552ZE board" OFF)
 
-if(NOT FREERTOS_F100RB_EXAMPLE AND NOT FREERTOS_F407VG_EXAMPLE AND NOT FREERTOS_H743ZI_EXAMPLE AND NOT FREERTOS_L552ZE_EXAMPLE)
+if(NOT FREERTOS_G070RB_EXAMPLE AND NOT FREERTOS_F100RB_EXAMPLE AND NOT FREERTOS_F407VG_EXAMPLE AND NOT FREERTOS_H743ZI_EXAMPLE AND NOT FREERTOS_L552ZE_EXAMPLE)
     message(FATAL_ERROR
         "Please select at least one target to compile by passing FREERTOS_<BOARD>_EXAMPLE=ON\n"
         "Supported boards: ${SUPPORTED_BOARDS}"
@@ -57,6 +58,20 @@ endif()
 
 if(USE_CMSIS_RTOS_V2)
     list(APPEND CMSIS_COMP_LIST RTOS_V2)
+endif()
+
+if(FREERTOS_G070RB_EXAMPLE)
+    list(APPEND CMSIS_COMP_LIST STM32G070RB)
+    list(APPEND HAL_COMP_LIST STM32G070RB)
+    list(APPEND FREERTOS_COMP_LIST ARM_CM0)
+
+    if(USE_CUBE_FREERTOS)
+        # The device family needs to be supplied as a component to use the Cube FreeRTOS sources
+        list(APPEND FREERTOS_COMP_LIST STM32G0)
+        set(FREERTOS_F1_NAMESPACE ${FREERTOS_NAMESPACE}::STM32::G0)
+    else()
+        set(FREERTOS_F1_NAMESPACE ${FREERTOS_NAMESPACE})
+    endif()
 endif()
 
 if(FREERTOS_F100RB_EXAMPLE)
@@ -128,6 +143,42 @@ set(PROJECT_SOURCES
 set(INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
+
+if(FREERTOS_G070RB_EXAMPLE)
+    set(TARGET_NAME ${PROJ_NAME}-g070rb)
+    add_executable(${TARGET_NAME})
+
+    target_sources(${TARGET_NAME} PRIVATE ${PROJECT_SOURCES})
+    target_include_directories(${TARGET_NAME} PRIVATE ${INCLUDE_DIRS})
+    target_link_libraries(${TARGET_NAME} PRIVATE
+        ${FREERTOS_F1_NAMESPACE}::Timers
+        ${FREERTOS_F1_NAMESPACE}::Heap::4
+        ${FREERTOS_F1_NAMESPACE}::ARM_CM0
+        HAL::STM32::G0::RCC
+        HAL::STM32::G0::GPIO
+        HAL::STM32::G0::CORTEX
+        CMSIS::STM32::G070RB 
+        STM32::NoSys
+    )
+    if(USE_CMSIS_RTOS)
+        target_link_libraries(${TARGET_NAME} PRIVATE
+            CMSIS::STM32::G0::RTOS
+        )
+    endif()
+    if(USE_CMSIS_RTOS_V2)
+        target_link_libraries(${TARGET_NAME} PRIVATE
+            CMSIS::STM32::G0::RTOS_V2
+        )
+        target_compile_definitions(${TARGET_NAME} PRIVATE
+            USE_CMSIS_RTOS_V2
+            CMSIS_RTOS_V2_DEVICE_HEADER="stm32g0xx_hal.h"
+        )
+    endif()
+
+    stm32_print_size_of_target(${TARGET_NAME})
+    stm32_generate_binary_file(${TARGET_NAME})
+    stm32_generate_hex_file(${TARGET_NAME})
+endif()
 
 if(FREERTOS_F100RB_EXAMPLE)
     set(TARGET_NAME ${PROJ_NAME}-f100rb)
